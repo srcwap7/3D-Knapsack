@@ -396,7 +396,8 @@ def main():
         volume=packed_items[0]
         cost=packed_items[3]
         cwnd=1
-        while (volume<0.85*current_bin_volume):
+        previous_packing=packed_items[1]
+        while (volume<0.80*current_bin_volume):
             # STILL VOLUME IS LEFT IN THE BOX
             cwnd = cwnd * 2
             last_items = sorted_economy_items[-cwnd:]
@@ -421,7 +422,15 @@ def main():
             item_list.append(item)
         
         packed_ids = {item[0] for item in packed_items[1]}
+        dropout=[]
+        for element in previous_packing:
+            if element[0] not in packed_ids:
+                dropout.append(element)
+        sorted_economy_items.append(element)
         sorted_economy_items = [item for item in sorted_economy_items if item[0] not in packed_ids]
+
+        previous_packing=packed_items[1]
+
         while (ack_count<5):
             window_size+=1
             last_items = sorted_economy_items[-window_size:]
@@ -438,7 +447,15 @@ def main():
                 ack_count+=1
             for item in last_items:
                 item_list.remove(item)  
+
         packed_ids={item[0] for item in packed_items[1]}
+        dropout=[]
+        
+        for element in previous_packing:
+            if element[0] not in packed_ids:
+                dropout.append(element)
+
+        sorted_economy_items.extend(dropout)
         sorted_economy_items = [item for item in sorted_economy_items if item[0] not in packed_ids]
 
 
@@ -466,129 +483,130 @@ def main():
         i+=1
 
     
+    if (sorted_economy_items):
+        for j in range(i,len(uld_list)):
+            current_bin=j
+            current_bin_volume=uld_list[current_bin][1]*uld_list[current_bin][2]*uld_list[current_bin][3]
+            temp_items=solve_economy_packing(sorted_economy_items,uld_list[current_bin][1],uld_list[current_bin][2],uld_list[current_bin][3],uld_list[current_bin][4])
+            packed_items=pack_items([0,temp_items[1]],uld_list[current_bin])
+            item_list=[]
+            for key in packed_items[1]:
+                item_list.append(key)
+            volume=packed_items[0]
+            cost=packed_items[3]
+            cwnd=1
+            prev_sorted=sorted_economy_items
+            sorted_economy_items=[items for items in sorted_economy_items if items not in packed_items[1]]
 
-    for j in range(i,len(uld_list)):
-        current_bin=j
-        current_bin_volume=uld_list[current_bin][1]*uld_list[current_bin][2]*uld_list[current_bin][3]
-        temp_items=solve_economy_packing(sorted_economy_items,uld_list[current_bin][1],uld_list[current_bin][2],uld_list[current_bin][3],uld_list[current_bin][4])
-        packed_items=pack_items([0,temp_items[1]],uld_list[current_bin])
-        item_list=[]
-        for key in packed_items[1]:
-            item_list.append(key)
-        volume=packed_items[0]
-        cost=packed_items[3]
-        cwnd=1
-        prev_sorted=sorted_economy_items
-        sorted_economy_items=[items for items in sorted_economy_items if items not in packed_items[1]]
 
-        
 
-        while (volume<0.80*current_bin_volume):
-            # STILL VOLUME IS LEFT IN THE BOX
-            cwnd = cwnd * 2
-            last_items = sorted_economy_items[-cwnd:]
-           
-            item_list.extend(last_items)
-            new_packing = pack_items([0, item_list], uld_list[current_bin]) 
-            print(item_list)
+            while (volume<0.80*current_bin_volume):
+                # STILL VOLUME IS LEFT IN THE BOX
+                cwnd = cwnd * 2
+                last_items = sorted_economy_items[-cwnd:]
 
-            
-            new_volume = new_packing[0]
-            new_cost=new_packing[3]
-            
-            if new_cost >= cost:
-                packed_items = new_packing
-                volume = new_volume
-                cost=new_cost
-            else:
-                break
+                item_list.extend(last_items)
+                new_packing = pack_items([0, item_list], uld_list[current_bin]) 
+                print(item_list)
 
-            for item in last_items:
-                item_list.remove(item) 
 
-        
-        window_size = 0
-        ack_count=0
-        item_list=[]
-        for item in packed_items[1]:
-            item_list.append(item)
-        
-        packed_ids = {item[0] for item in packed_items[1]}
-        prev_temp=prev_sorted
-        prev_sorted = [item for item in prev_sorted if item[0] not in packed_ids]
+                new_volume = new_packing[0]
+                new_cost=new_packing[3]
 
-        
-        while (ack_count<5):
-            window_size+=1
-            last_items = prev_sorted[-window_size:]
-            item_list.extend(last_items)
-            new_packing = pack_items([0, item_list], uld_list[current_bin])
-            new_volume = new_packing[0]
-            new_cost=new_packing[3]
-            if new_cost > cost:
-                packed_items = new_packing
-                volume = new_volume
-                cost=new_cost
-                ack_count=0
-            else:
-                ack_count+=1
-            for item in last_items:
-                item_list.remove(item)  
-        
-        packed_ids={item[0] for item in packed_items[1]}
-        prev_temp = [item for item in prev_temp if item[0] not in packed_ids]
-        sorted_economy_items = prev_temp
-        volume_percentage=volume/current_bin_volume * 100
-        bin_cost[current_bin]=cost
+                if new_cost >= cost:
+                    packed_items = new_packing
+                    volume = new_volume
+                    cost=new_cost
+                else:
+                    break
 
-        with open("outputlog.txt","a") as f:
-            f.write(f"Volume Percentage: {volume_percentage}%\n")
-            
-        for j in range(len(packed_items[1])):
-            key = current_bin  
-            value = [
-                packed_items[1][j][0],  
-                packed_items[1][j][5], 
-                packed_items[2][j][0],  
-                packed_items[2][j][1],  
-                packed_items[2][j][2],  
-                packed_items[2][j][3],
-                packed_items[2][j][4],
-                packed_items[2][j][5]
-            ]
-            if key not in packed_data:
-                packed_data[key] = []
-            packed_data[key].append(value)
-     
+                for item in last_items:
+                    item_list.remove(item) 
+
+
+            window_size = 0
+            ack_count=0
+            item_list=[]
+            for item in packed_items[1]:
+                item_list.append(item)
+
+            packed_ids = {item[0] for item in packed_items[1]}
+            prev_temp=prev_sorted
+            prev_sorted = [item for item in prev_sorted if item[0] not in packed_ids]
+
+
+            while (ack_count<5):
+                window_size+=1
+                last_items = prev_sorted[-window_size:]
+                item_list.extend(last_items)
+                new_packing = pack_items([0, item_list], uld_list[current_bin])
+                new_volume = new_packing[0]
+                new_cost=new_packing[3]
+                if new_cost > cost:
+                    packed_items = new_packing
+                    volume = new_volume
+                    cost=new_cost
+                    ack_count=0
+                else:
+                    ack_count+=1
+                for item in last_items:
+                    item_list.remove(item)  
+
+            packed_ids={item[0] for item in packed_items[1]}
+            prev_temp = [item for item in prev_temp if item[0] not in packed_ids]
+            sorted_economy_items = prev_temp
+            volume_percentage=volume/current_bin_volume * 100
+            bin_cost[current_bin]=cost
+
+            with open("outputlog.txt","a") as f:
+                f.write(f"Volume Percentage: {volume_percentage}%\n")
+
+            for j in range(len(packed_items[1])):
+                key = current_bin  
+                value = [
+                    packed_items[1][j][0],  
+                    packed_items[1][j][5], 
+                    packed_items[2][j][0],  
+                    packed_items[2][j][1],  
+                    packed_items[2][j][2],  
+                    packed_items[2][j][3],
+                    packed_items[2][j][4],
+                    packed_items[2][j][5]
+                ]
+                if key not in packed_data:
+                    packed_data[key] = []
+                packed_data[key].append(value)
+
     
-
-    for items in sorted_economy_items:
-        print(items)
+    
     print("Simulated Annealing Phase")
     total_packed_cost=0
     for key in bin_cost:
         total_packed_cost+=bin_cost[key]
-    initial_temp=100000
-    final_temp=0.0001
-    cooling_rate=0.95
+    initial_temp=10000
+    final_temp=0.001
+    cooling_rate=0.96
     temperature=initial_temp
     curr_cost=total_packed_cost
-    MAX_EXPONENT = -500
+    MAX_EXPONENT = -700
     pprint.pprint(packed_data)
 
+    print("sorted economy items")
+
+    print(len(sorted_economy_items))
     
+    cost_arr=[curr_cost]
     while (temperature > final_temp and sorted_economy_items):
         element=random.choice(sorted_economy_items)
+        print("***********************Selected ELement*********************************")
         print(element)
-        max_diff=-150
         new_packing=[]
-        best=-1
         flag=False
         best_bin=5
         new_total_cost=0
+        best_till_now=0
         for j in range(len(uld_list)):
             current_bin=j
-            prev_cost=bin_cost[current_bin]
             total_items=[]
             for item in packed_data[current_bin]:
                 it=item[0]
@@ -607,25 +625,19 @@ def main():
             
             pprint.pprint(modified_data)
 
-            diff=new_cost-prev_cost
-            if (new_cost>prev_cost and diff>max_diff):
-                new_packing=modified_data
-                max_diff=diff
-                best=max(best,new_cost)
+            if (best_till_now < new_cost):
                 best_bin=current_bin
-                new_total_cost=max(new_total_cost,curr_cost-prev_cost+new_cost)
-                flag=True
-                
-            elif (new_cost<prev_cost and flag==False):
-                if (diff>max_diff):
-                    max_diff=diff
-                    new_packing=modified_data
-                    best=max(best,new_cost)
-                    best_bin=current_bin
-                    new_total_cost=max(new_total_cost,curr_cost-prev_cost+new_cost)
-                
+                best_till_now=new_cost
+                new_packing=modified_data
+
+        new_total_cost=curr_cost-bin_cost[best_bin]+best_till_now
+
+        cost_arr.append(new_total_cost)
+
         if (new_total_cost>curr_cost):
             #ACCEPT THE SOLUTION 
+            print("**************************************************Got a better pick*****************************************")
+
             previously_packed_ids=[]
             for items in packed_data[best_bin]:
                 previously_packed_ids.append(items[0])
@@ -637,12 +649,32 @@ def main():
                 if items not in newly_packed_ids:
                     dropout.append([items,data_map[items][0],data_map[items][1],data_map[items][2],data_map[items][3],data_map[items][4],data_map[items][5]])
             packed_data[best_bin]=new_packing
-            bin_cost[best_bin]=best
-            sorted_economy_items.remove(element)
+            bin_cost[best_bin]=best_till_now
+            if (element[0] in newly_packed_ids):
+                sorted_economy_items.remove(element)
             sorted_economy_items.extend(dropout)
+            tot=0
+            for key in packed_data:
+                tot+=len(packed_data[key])
+            packed=tot
+            tot+=len(sorted_economy_items)
+            unpacked=tot-packed
+            if (tot!=400):
+                print("Termination")
+                print("***************Unequal number of elements*********************")
+                print("Packed Items",packed)
+                print("Unpacked Items",unpacked)
+                print("Current iteration for element:-",element)
+                print("Currently in bin no ",best_bin)
+                print("Previously packed".previously_packed_ids)
+                print([items[0] for items in dropout])
+                print([items[0] for items in packed_data[best_bin]])
+                break
             curr_cost=new_total_cost
 
-        elif (random.random() < math.exp(max((new_total_cost-curr_cost),MAX_EXPONENT) / temperature)):
+        
+        
+        elif (random.random() < math.exp(max((new_total_cost-curr_cost),MAX_EXPONENT) / temperature) and abs(curr_cost-new_total_cost)<10**4):
             #ACCEPT THE SOLUTION
             previously_packed_ids=[]
             for items in packed_data[best_bin]:
@@ -655,24 +687,39 @@ def main():
                 if items not in newly_packed_ids:
                     dropout.append([items,data_map[items][0],data_map[items][1],data_map[items][2],data_map[items][3],data_map[items][4],data_map[items][5]])
             packed_data[best_bin]=new_packing
-            bin_cost[best_bin]=best
-            sorted_economy_items.remove(element)
+            bin_cost[best_bin]=best_till_now
+            if (element[0] in newly_packed_ids):
+                sorted_economy_items.remove(element)
             sorted_economy_items.extend(dropout)
             curr_cost=new_total_cost
-
+            tot=0
+            for key in packed_data:
+                tot+=len(packed_data[key])
+            tot+=len(sorted_economy_items)
+            if (tot!=400):
+                print("Termination")
+                print("***************Unequal number of elements*********************")
+                print("Packed Items",packed)
+                print("Unpacked Items",unpacked)
+                print("Current iteration for element:-",element)
+                print("Currently in bin no ",best_bin)
+                print("Previously packed",previously_packed_ids)
+                print([items[0] for items in dropout])
+                print([items[0] for items in packed_data[best_bin]])
+                break
         temperature *= cooling_rate
-
+    
     
     
     
             
 
-    with open("metrics.txt","w") as cf:
-        cf.write(f"Total Cost incurred: {bin_cost}\n")
+    
 
     for items in sorted_economy_items:
         incurred_cost+=items[6]
 
+    
     start=True
     with open("packed_item.csv", "a", newline="") as packed_file:
         packed_writer = csv.writer(packed_file)
@@ -684,10 +731,11 @@ def main():
             for value in values:
                 packed_writer.writerow(value + [uld_items_with_metric[key][1][0]])  
         for item in sorted_economy_items:
-            packed_writer.writerow([item[0],"-1"])
+            packed_writer.writerow([item[0],"None",-1,-1,-1,-1,-1,-1])
 
 
-    
+    print("***************************************Cost Array**********************************************")
+    print(cost)
     print("**************************************Processing Complete**************************************")
     print("Total Cost incurred:",incurred_cost)
     print ("Output saved to packed_items.csv")
@@ -695,4 +743,5 @@ def main():
     
 if __name__ == "__main__":
     main()
+
 
