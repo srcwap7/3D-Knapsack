@@ -168,6 +168,7 @@ python3 linear_optimizer_controller.py False
 Give the input file in following format shown in the picture below (only shown top 3 rows)
 
 You need to give the either of two input arguement True or False to file linear_optimizer_controller.py for stablitiy default is considered to be false
+Ensure that the K is written in uppercase.
 ```bash
 K=5000
 U1,224,318,162,2500
