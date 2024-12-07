@@ -3,7 +3,7 @@ from py3dbp.constants import RotationType, Axis
 
 import time
 
-def pack_items(packed_items, uld):
+def pack_items(packed_items, uld, is_stable=False):
     print(packed_items)
     # Start timing
     start = time.time()
@@ -39,8 +39,8 @@ def pack_items(packed_items, uld):
         bigger_first=True,
         distribute_items=False,
         fix_point=True,
-        check_stable=True,
-        support_surface_ratio=0.50,
+        check_stable=is_stable,
+        support_surface_ratio=0.45,
         number_of_decimals=0
     )
 
@@ -95,3 +95,4 @@ if __name__ == "__main__":
     result = pack_items(packed_items, uld)
     print("Volume Occupied:", result[0])
     print("Diagonal Coordinates:", result[1])
+

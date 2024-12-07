@@ -6,6 +6,7 @@ from runner import pack_items
 import math
 import csv
 import re
+import time
 
 
 def calculate_lbh(packed_items):
@@ -88,7 +89,7 @@ def solve_packing(items, box_length, box_width, box_height, box_weight_limit):
     # Objective: Maximize the number of items packed
     model.setObjective(sum(S[i] for i in range(n)), GRB.MAXIMIZE)
 
-    model.setParam('TimeLimit',30)
+    model.setParam('TimeLimit',20)
 
     # Solve the model
     model.optimize()
@@ -191,7 +192,7 @@ def solve_economy_packing(items, box_length, box_width, box_height, box_weight_l
     # Objective: Maximize the number of items packed
     model.setObjective(sum(S[i]*items[i][6] for i in range(n)), GRB.MAXIMIZE)
 
-    model.setParam('TimeLimit',120)
+    model.setParam('TimeLimit',100)
 
     # Solve the model
     model.optimize()
@@ -276,6 +277,12 @@ def find_weight(items,box):
     
     
 def main():
+    start_time = time.time()
+    is_stable=False
+    if len(sys.argv) < 2:
+        is_stable=False
+    else:
+        is_stable=sys.argv[1]
     priority_items = []
     sorted_economy_items = []
     uld_list = []
@@ -389,7 +396,7 @@ def main():
         current_bin=i
         current_bin_volume=uld_list[current_bin][1]*uld_list[current_bin][2]*uld_list[current_bin][3]
         temp_items=solve_packing(priority_items,uld_list[current_bin][1],uld_list[current_bin][2],uld_list[current_bin][3],uld_list[current_bin][4])
-        packed_items=pack_items([0,temp_items[1]],uld_list[current_bin])
+        packed_items=pack_items([0,temp_items[1]],uld_list[current_bin], is_stable)
         item_list=[]
         for key in packed_items[1]:
             item_list.append(key)
@@ -402,7 +409,7 @@ def main():
             cwnd = cwnd * 2
             last_items = sorted_economy_items[-cwnd:]
             item_list.extend(last_items)
-            new_packing = pack_items([0, item_list], uld_list[current_bin])
+            new_packing = pack_items([0, item_list], uld_list[current_bin], is_stable)
         
             new_volume = new_packing[0]
             new_cost=new_packing[3]
@@ -435,7 +442,7 @@ def main():
             window_size+=1
             last_items = sorted_economy_items[-window_size:]
             item_list.extend(last_items)
-            new_packing = pack_items([0, item_list], uld_list[current_bin])
+            new_packing = pack_items([0, item_list], uld_list[current_bin], is_stable)
             new_volume = new_packing[0]
             new_cost=new_packing[3]
             if new_cost > cost:
@@ -488,7 +495,7 @@ def main():
             current_bin=j
             current_bin_volume=uld_list[current_bin][1]*uld_list[current_bin][2]*uld_list[current_bin][3]
             temp_items=solve_economy_packing(sorted_economy_items,uld_list[current_bin][1],uld_list[current_bin][2],uld_list[current_bin][3],uld_list[current_bin][4])
-            packed_items=pack_items([0,temp_items[1]],uld_list[current_bin])
+            packed_items=pack_items([0,temp_items[1]],uld_list[current_bin], is_stable)
             item_list=[]
             for key in packed_items[1]:
                 item_list.append(key)
@@ -506,7 +513,7 @@ def main():
                 last_items = sorted_economy_items[-cwnd:]
 
                 item_list.extend(last_items)
-                new_packing = pack_items([0, item_list], uld_list[current_bin]) 
+                new_packing = pack_items([0, item_list], uld_list[current_bin], is_stable) 
                 print(item_list)
 
 
@@ -539,7 +546,7 @@ def main():
                 window_size+=1
                 last_items = prev_sorted[-window_size:]
                 item_list.extend(last_items)
-                new_packing = pack_items([0, item_list], uld_list[current_bin])
+                new_packing = pack_items([0, item_list], uld_list[current_bin], is_stable)
                 new_volume = new_packing[0]
                 new_cost=new_packing[3]
                 if new_cost > cost:
@@ -585,7 +592,7 @@ def main():
         total_packed_cost+=bin_cost[key]
     initial_temp=10000
     final_temp=0.001
-    cooling_rate=0.96
+    cooling_rate=0.975
     temperature=initial_temp
     curr_cost=total_packed_cost
     MAX_EXPONENT = -700
@@ -615,7 +622,7 @@ def main():
             total_items.append(element)
 
 
-            packed_items=pack_items([0,total_items],uld_list[current_bin])
+            packed_items=pack_items([0,total_items],uld_list[current_bin], is_stable)
             new_cost=packed_items[3]
             
             modified_data = [
@@ -719,13 +726,17 @@ def main():
     for items in sorted_economy_items:
         incurred_cost+=items[6]
 
+    packed=0
+    for key, values in packed_data.items():
+            for value in values:
+                packed+=1
+
     
     start=True
     with open("packed_item.csv", "a", newline="") as packed_file:
         packed_writer = csv.writer(packed_file)
         if (start):
-            packed_writer.writerow(["Total cost incurred : " ,incurred_cost])
-            packed_writer.writerow(["Number of containers with priority items : " ,n_p])
+            packed_writer.writerow([incurred_cost, packed , n_p ])
             start=False
         for key, values in packed_data.items():
             for value in values:
@@ -738,10 +749,15 @@ def main():
     print(cost)
     print("**************************************Processing Complete**************************************")
     print("Total Cost incurred:",incurred_cost)
-    print ("Output saved to packed_items.csv")
+    print ("Output saved to packed_item.csv")
+
+    end_time = time.time()
+
+    print("Time taken:", end_time - start_time)
 
     
 if __name__ == "__main__":
     main()
+
 
 
