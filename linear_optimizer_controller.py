@@ -426,7 +426,7 @@ def main():
         for element in previous_packing:
             if element[0] not in packed_ids:
                 dropout.append(element)
-        sorted_economy_items.append(element)
+        sorted_economy_items.extend(dropout)
         sorted_economy_items = [item for item in sorted_economy_items if item[0] not in packed_ids]
 
         previous_packing=packed_items[1]

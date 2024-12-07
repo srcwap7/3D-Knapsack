@@ -39,8 +39,8 @@ def pack_items(packed_items, uld):
         bigger_first=True,
         distribute_items=False,
         fix_point=True,
-        check_stable=False,
-        support_surface_ratio=0.45,
+        check_stable=True,
+        support_surface_ratio=0.50,
         number_of_decimals=0
     )
 
